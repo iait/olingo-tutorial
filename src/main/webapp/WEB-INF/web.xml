@@ -1,0 +1,22 @@
+<!DOCTYPE web-app PUBLIC
+ "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+ "http://java.sun.com/dtd/web-app_2_3.dtd" >
+
+<web-app>
+
+    <!-- Register the HttpServlet implementation -->
+    <servlet>
+      <servlet-name>DemoServlet</servlet-name>
+      <servlet-class>olingo.tutorial.web.DemoServlet</servlet-class>
+      <load-on-startup>1</load-on-startup>
+    </servlet>
+    
+    <!-- 
+        Our OData service can be invoked at 
+        http://localhost:8080/DemoService/DemoService.svc
+    -->
+    <servlet-mapping>
+      <servlet-name>DemoServlet</servlet-name>
+      <url-pattern>/DemoService.svc/*</url-pattern>
+    </servlet-mapping>
+</web-app>
