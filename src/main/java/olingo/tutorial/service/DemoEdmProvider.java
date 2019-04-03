@@ -25,14 +25,20 @@ import java.util.List;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.olingo.commons.api.edm.provider.CsdlAbstractEdmProvider;
+import org.apache.olingo.commons.api.edm.provider.CsdlAction;
+import org.apache.olingo.commons.api.edm.provider.CsdlActionImport;
 import org.apache.olingo.commons.api.edm.provider.CsdlEntityContainer;
 import org.apache.olingo.commons.api.edm.provider.CsdlEntityContainerInfo;
 import org.apache.olingo.commons.api.edm.provider.CsdlEntitySet;
 import org.apache.olingo.commons.api.edm.provider.CsdlEntityType;
+import org.apache.olingo.commons.api.edm.provider.CsdlFunction;
+import org.apache.olingo.commons.api.edm.provider.CsdlFunctionImport;
 import org.apache.olingo.commons.api.edm.provider.CsdlNavigationProperty;
 import org.apache.olingo.commons.api.edm.provider.CsdlNavigationPropertyBinding;
+import org.apache.olingo.commons.api.edm.provider.CsdlParameter;
 import org.apache.olingo.commons.api.edm.provider.CsdlProperty;
 import org.apache.olingo.commons.api.edm.provider.CsdlPropertyRef;
+import org.apache.olingo.commons.api.edm.provider.CsdlReturnType;
 import org.apache.olingo.commons.api.edm.provider.CsdlSchema;
 
 /**
@@ -42,47 +48,149 @@ import org.apache.olingo.commons.api.edm.provider.CsdlSchema;
  */
 public class DemoEdmProvider extends CsdlAbstractEdmProvider {
 
-  // Service Namespace
-  public static final String NAMESPACE = "EIV";
+    // Service Namespace
+    public static final String NAMESPACE = "EIV";
 
-  // EDM Container
-  public static final String CONTAINER_NAME = "Container";
-  public static final FullQualifiedName CONTAINER = new FullQualifiedName(NAMESPACE, CONTAINER_NAME);
+    // EDM Container
+    public static final String CONTAINER_NAME = "Container";
+    public static final FullQualifiedName CONTAINER = new FullQualifiedName(NAMESPACE, CONTAINER_NAME);
 
-  // Entity Types Names
-  public static final String ET_PRODUCT_NAME = "Product";
-  public static final FullQualifiedName ET_PRODUCT_FQN = new FullQualifiedName(NAMESPACE, ET_PRODUCT_NAME);
-  public static final String ET_CATEGORY_NAME = "Category";
-  public static final FullQualifiedName ET_CATEGORY_FQN = new FullQualifiedName(NAMESPACE, ET_CATEGORY_NAME);
+    // Entity Types Names
+    public static final String ET_PRODUCT_NAME = "Product";
+    public static final FullQualifiedName ET_PRODUCT_FQN = new FullQualifiedName(NAMESPACE, ET_PRODUCT_NAME);
+    public static final String ET_CATEGORY_NAME = "Category";
+    public static final FullQualifiedName ET_CATEGORY_FQN = new FullQualifiedName(NAMESPACE, ET_CATEGORY_NAME);
 
-  // Entity Set Names
-  public static final String ES_PRODUCTS_NAME = "Products";
-  public static final String ES_CATEGORIES_NAME = "Categories";
+    // Entity Set Names
+    public static final String ES_PRODUCTS_NAME = "Products";
+    public static final String ES_CATEGORIES_NAME = "Categories";
+  
+    // Action
+    public static final String ACTION_RESET = "Reset";
+    public static final FullQualifiedName ACTION_RESET_FQN = new FullQualifiedName(NAMESPACE, ACTION_RESET);
 
-  @Override
-  public List<CsdlSchema> getSchemas() {
+    // Function
+    public static final String FUNCTION_COUNT_CATEGORIES = "CountCategories";
+    public static final FullQualifiedName FUNCTION_COUNT_CATEGORIES_FQN = new FullQualifiedName(NAMESPACE, FUNCTION_COUNT_CATEGORIES);
 
-    // create Schema
-    CsdlSchema schema = new CsdlSchema();
-    schema.setNamespace(NAMESPACE);
+    // Function/Action Parameters
+    public static final String PARAMETER_AMOUNT = "Amount";
 
-    // add EntityTypes
-    List<CsdlEntityType> entityTypes = new ArrayList<>();
-    entityTypes.add(getEntityType(ET_PRODUCT_FQN));
-    entityTypes.add(getEntityType(ET_CATEGORY_FQN));
-    schema.setEntityTypes(entityTypes);
+    @Override
+    public List<CsdlSchema> getSchemas() {
 
-    // add EntityContainer
-    schema.setEntityContainer(getEntityContainer());
+        // create Schema
+        CsdlSchema schema = new CsdlSchema();
+        schema.setNamespace(NAMESPACE);
+    
+        // add EntityTypes
+        List<CsdlEntityType> entityTypes = new ArrayList<>();
+        entityTypes.add(getEntityType(ET_PRODUCT_FQN));
+        entityTypes.add(getEntityType(ET_CATEGORY_FQN));
+        schema.setEntityTypes(entityTypes);
+    
+        // add EntityContainer
+        schema.setEntityContainer(getEntityContainer());
+        
+        // add actions
+        List<CsdlAction> actions = new ArrayList<>();
+        actions.addAll(getActions(ACTION_RESET_FQN));
+        schema.setActions(actions);
 
-    // finally
-    List<CsdlSchema> schemas = new ArrayList<>();
-    schemas.add(schema);
+        // add functions
+        List<CsdlFunction> functions = new ArrayList<>();
+        functions.addAll(getFunctions(FUNCTION_COUNT_CATEGORIES_FQN));
+        schema.setFunctions(functions);
+    
+        // finally
+        List<CsdlSchema> schemas = new ArrayList<>();
+        schemas.add(schema);
+    
+        return schemas;
+    }
 
-    return schemas;
-  }
+    @Override
+    public List<CsdlFunction> getFunctions(final FullQualifiedName functionName) {
+        
+        if (functionName.equals(FUNCTION_COUNT_CATEGORIES_FQN)) {
+            
+            // Create the parameter for the function
+            CsdlParameter parameterAmount = new CsdlParameter()
+                    .setName(PARAMETER_AMOUNT)
+                    .setNullable(false)
+                    .setType(EdmPrimitiveTypeKind.Int32.getFullQualifiedName());
+    
+            // Create the return type of the function
+            CsdlReturnType returnType = new CsdlReturnType()
+                    .setCollection(true)
+                    .setType(ET_CATEGORY_FQN);
+    
+            // Create the function
+            CsdlFunction function = new CsdlFunction()
+                    .setName(FUNCTION_COUNT_CATEGORIES_FQN.getName())
+                    .setParameters(Arrays.asList(parameterAmount))
+                    .setReturnType(returnType);
+    
+            // It is allowed to overload functions, so we have to provide a list of functions for each function name
+            return Arrays.asList(function);
+        }
 
+        return null;
+    }
+    
+    @Override
+    public CsdlFunctionImport getFunctionImport(FullQualifiedName entityContainer, String functionImportName) {
+        
+        if (entityContainer.equals(CONTAINER)) {
+            if (functionImportName.equals(FUNCTION_COUNT_CATEGORIES_FQN.getName())) {
+              return new CsdlFunctionImport()
+                        .setName(functionImportName)
+                        .setFunction(FUNCTION_COUNT_CATEGORIES_FQN)
+                        .setEntitySet(ES_CATEGORIES_NAME)
+                        .setIncludeInServiceDocument(true);
+            }
+        }
 
+        return null;
+    }
+
+    @Override
+    public List<CsdlAction> getActions(final FullQualifiedName actionName) {
+      
+        if (actionName.equals(ACTION_RESET_FQN)) {
+
+            // Create parameters
+            CsdlParameter parameter = new CsdlParameter()
+                    .setName(PARAMETER_AMOUNT)
+                    .setType(EdmPrimitiveTypeKind.Int32.getFullQualifiedName());
+            List<CsdlParameter> parameters = Arrays.asList(parameter);
+    
+            // Create the Csdl Action
+            CsdlAction action = new CsdlAction()
+                    .setName(ACTION_RESET_FQN.getName())
+                    .setParameters(parameters);
+    
+            // It is allowed to overload actions, so we have to provide a list of Actions for each action name
+            return Arrays.asList(action);
+        }
+
+        return null;
+    }
+
+    @Override
+    public CsdlActionImport getActionImport(final FullQualifiedName entityContainer, final String actionImportName) {
+        
+        if (entityContainer.equals(CONTAINER)) {
+            if (actionImportName.equals(ACTION_RESET_FQN.getName())) {
+              return new CsdlActionImport()
+                      .setName(actionImportName)
+                      .setAction(ACTION_RESET_FQN);
+            }
+        }
+
+        return null;
+    }
+    
     @Override
     public CsdlEntityType getEntityType(FullQualifiedName entityTypeName) {
 
@@ -182,33 +290,44 @@ public class DemoEdmProvider extends CsdlAbstractEdmProvider {
         return null;
     }
 
-  @Override
-  public CsdlEntityContainer getEntityContainer() {
+    @Override
+    public CsdlEntityContainer getEntityContainer() {
 
-    // create EntitySets
-    List<CsdlEntitySet> entitySets = new ArrayList<>();
-    entitySets.add(getEntitySet(CONTAINER, ES_PRODUCTS_NAME));
-    entitySets.add(getEntitySet(CONTAINER, ES_CATEGORIES_NAME));
+        // create EntitySets
+        List<CsdlEntitySet> entitySets = new ArrayList<>();
+        entitySets.add(getEntitySet(CONTAINER, ES_PRODUCTS_NAME));
+        entitySets.add(getEntitySet(CONTAINER, ES_CATEGORIES_NAME));
+    
+        // create EntityContainer
+        CsdlEntityContainer entityContainer = new CsdlEntityContainer();
+        entityContainer.setName(CONTAINER_NAME);
+        entityContainer.setEntitySets(entitySets);
+        
+        // create function imports
+        List<CsdlFunctionImport> functionImports = new ArrayList<>();
+        functionImports.add(getFunctionImport(CONTAINER, FUNCTION_COUNT_CATEGORIES));
 
-    // create EntityContainer
-    CsdlEntityContainer entityContainer = new CsdlEntityContainer();
-    entityContainer.setName(CONTAINER_NAME);
-    entityContainer.setEntitySets(entitySets);
+        // create action imports
+        List<CsdlActionImport> actionImports = new ArrayList<CsdlActionImport>();
+        actionImports.add(getActionImport(CONTAINER, ACTION_RESET));
 
-    return entityContainer;
-  }
-
-  @Override
-  public CsdlEntityContainerInfo getEntityContainerInfo(FullQualifiedName entityContainerName) {
-
-    // This method is invoked when displaying the service document at e.g. 
-      // http://localhost:8080/DemoService/DemoService.svc
-    if(entityContainerName == null || entityContainerName.equals(CONTAINER)){
-      CsdlEntityContainerInfo entityContainerInfo = new CsdlEntityContainerInfo();
-      entityContainerInfo.setContainerName(CONTAINER);
-      return entityContainerInfo;
+        entityContainer.setFunctionImports(functionImports);
+        entityContainer.setActionImports(actionImports);
+    
+        return entityContainer;
     }
 
-    return null;
-  }
+    @Override
+    public CsdlEntityContainerInfo getEntityContainerInfo(FullQualifiedName entityContainerName) {
+
+        // This method is invoked when displaying the service document at e.g. 
+          // http://localhost:8080/DemoService/DemoService.svc
+        if(entityContainerName == null || entityContainerName.equals(CONTAINER)){
+          CsdlEntityContainerInfo entityContainerInfo = new CsdlEntityContainerInfo();
+          entityContainerInfo.setContainerName(CONTAINER);
+          return entityContainerInfo;
+        }
+    
+        return null;
+    }
 }
