@@ -48,13 +48,13 @@ import org.apache.olingo.server.api.uri.UriInfo;
 import org.apache.olingo.server.api.uri.UriParameter;
 import org.apache.olingo.server.api.uri.UriResource;
 import org.apache.olingo.server.api.uri.UriResourceEntitySet;
+import org.apache.olingo.server.api.uri.UriResourceFunction;
 import org.apache.olingo.server.api.uri.UriResourceNavigation;
 
 import olingo.tutorial.data.Storage;
 import olingo.tutorial.util.Util;
 
 public class DemoEntityProcessor implements EntityProcessor {
-
 
 	private OData odata;
 	private ServiceMetadata serviceMetadata;
@@ -69,12 +69,32 @@ public class DemoEntityProcessor implements EntityProcessor {
 		this.serviceMetadata = serviceMetadata;
 	}
 
+	@Override
 	public void readEntity(
 	        ODataRequest request, 
 	        ODataResponse response, 
 	        UriInfo uriInfo, 
 	        ContentType responseFormat)
 	                throws ODataApplicationException, SerializerException {
+	    
+        UriResource firstResourceSegment = uriInfo.getUriResourceParts().get(0);
+
+        if (firstResourceSegment instanceof UriResourceEntitySet) {
+            readEntityInternal(request, response, uriInfo, responseFormat);
+        } else if (firstResourceSegment instanceof UriResourceFunction) {
+            readFunctionImport(request, response, uriInfo, responseFormat);
+        } else {
+            throw new ODataApplicationException("Not implemented",
+                    HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ENGLISH);
+        }
+	}
+	
+    private void readEntityInternal(
+            ODataRequest request, 
+            ODataResponse response, 
+            UriInfo uriInfo, 
+            ContentType responseFormat)
+                    throws ODataApplicationException, SerializerException {
 
 	    EdmEntitySet responseEntitySet;
 	    Entity responseEntity;
@@ -127,6 +147,27 @@ public class DemoEntityProcessor implements EntityProcessor {
 		response.setHeader(HttpHeader.CONTENT_TYPE, responseFormat.toContentTypeString());
 	}
 
+    private void readFunctionImport(
+            ODataRequest request, 
+            ODataResponse response, 
+            UriInfo uriInfo, 
+            ContentType responseFormat) 
+                    throws ODataApplicationException, SerializerException {
+        
+        UriResourceFunction uriResourseFunction = (UriResourceFunction) uriInfo.getUriResourceParts().get(0);
+        Entity entity = storage.readFunctionImportEntity(uriResourseFunction, serviceMetadata);
+        
+        EdmEntityType edmType = (EdmEntityType) uriResourseFunction.getFunction().getReturnType().getType();
+        ContextURL contextURL = ContextURL.with().type(edmType).build();
+        EntitySerializerOptions serializerOptions = EntitySerializerOptions.with().contextURL(contextURL).build();
+        ODataSerializer serializer = odata.createSerializer(responseFormat);
+        SerializerResult serializerResult = serializer.entity(serviceMetadata, edmType, entity, serializerOptions);
+        
+        response.setContent(serializerResult.getContent());
+        response.setStatusCode(HttpStatusCode.OK.getStatusCode());
+        response.setHeader(HttpHeader.CONTENT_TYPE, responseFormat.toContentTypeString());
+        
+    }
 
 	public void createEntity(ODataRequest request, ODataResponse response, UriInfo uriInfo, ContentType requestFormat, ContentType responseFormat)
 				throws ODataApplicationException, DeserializerException, SerializerException {

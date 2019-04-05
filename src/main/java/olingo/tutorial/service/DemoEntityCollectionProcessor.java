@@ -52,6 +52,7 @@ import org.apache.olingo.server.api.uri.UriInfoResource;
 import org.apache.olingo.server.api.uri.UriParameter;
 import org.apache.olingo.server.api.uri.UriResource;
 import org.apache.olingo.server.api.uri.UriResourceEntitySet;
+import org.apache.olingo.server.api.uri.UriResourceFunction;
 import org.apache.olingo.server.api.uri.UriResourceNavigation;
 import org.apache.olingo.server.api.uri.UriResourcePrimitiveProperty;
 import org.apache.olingo.server.api.uri.queryoption.CountOption;
@@ -97,7 +98,52 @@ public class DemoEntityCollectionProcessor implements EntityCollectionProcessor 
     // this method is called, when the user fires a request to an EntitySet
     // in our example, the URL would be:
     // http://localhost:8080/DemoService/DemoService.svc/Products
+    @Override
     public void readEntityCollection(
+            ODataRequest request, 
+            ODataResponse response, 
+            UriInfo uriInfo, 
+            ContentType responseFormat) 
+                    throws ODataApplicationException, SerializerException {
+
+        UriResource firstResourceSegment = uriInfo.getUriResourceParts().get(0);
+
+        if (firstResourceSegment instanceof UriResourceEntitySet) {
+            readEntityCollectionInternal(request, response, uriInfo, responseFormat);
+        } else if (firstResourceSegment instanceof UriResourceFunction) {
+            readFunctionImportCollection(request, response, uriInfo, responseFormat);
+        } else {
+            throw new ODataApplicationException("Not implemented",
+                    HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ENGLISH);
+        }
+    }
+    
+    private void readFunctionImportCollection(
+            ODataRequest request, 
+            ODataResponse response,
+            UriInfo uriInfo, 
+            ContentType responseFormat) 
+                    throws ODataApplicationException, SerializerException {
+
+        // 1st step: Analyze the URI and fetch the entity collection returned by the function import
+        // Function Imports are always the first segment of the resource path
+        UriResourceFunction uriResourceFunction = (UriResourceFunction) uriInfo.getUriResourceParts().get(0);
+        EntityCollection entityCol = storage.readFunctionImportCollection(uriResourceFunction, serviceMetadata);
+        
+        // 2nd step: Serialize the response entity
+        EdmEntityType edmEntityType = (EdmEntityType) uriResourceFunction.getFunction().getReturnType().getType();
+        ContextURL contextURL = ContextURL.with().asCollection().type(edmEntityType).build();
+        EntityCollectionSerializerOptions opts = EntityCollectionSerializerOptions.with().contextURL(contextURL).build();
+        ODataSerializer serializer = odata.createSerializer(responseFormat);
+        SerializerResult serializerResult = serializer.entityCollection(serviceMetadata, edmEntityType, entityCol, opts);
+
+        // 3rd configure the response object
+        response.setContent(serializerResult.getContent());
+        response.setStatusCode(HttpStatusCode.OK.getStatusCode());
+        response.setHeader(HttpHeader.CONTENT_TYPE, responseFormat.toContentTypeString());
+    }
+    
+    private void readEntityCollectionInternal(
             ODataRequest request, 
             ODataResponse response, 
             UriInfo uriInfo, 

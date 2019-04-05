@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import olingo.tutorial.data.Storage;
+import olingo.tutorial.service.DemoActionVoidProcessor;
 import olingo.tutorial.service.DemoEdmProvider;
 import olingo.tutorial.service.DemoEntityCollectionProcessor;
 import olingo.tutorial.service.DemoEntityProcessor;
@@ -70,6 +71,7 @@ public class DemoServlet extends HttpServlet {
         handler.register(new DemoEntityCollectionProcessor(storage));
         handler.register(new DemoEntityProcessor(storage));
         handler.register(new DemoPrimitiveProcessor(storage));
+        handler.register(new DemoActionVoidProcessor(storage));
     
         // let the handler do the work
         handler.process(req, resp);

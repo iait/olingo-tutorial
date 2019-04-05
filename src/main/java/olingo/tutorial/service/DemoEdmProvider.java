@@ -44,7 +44,7 @@ import org.apache.olingo.commons.api.edm.provider.CsdlSchema;
 /**
  * this class is supposed to declare the metadata of the OData service
  * it is invoked by the Olingo framework e.g. when the metadata document of the service is invoked
- * e.g. http://localhost:8080/ExampleService1/ExampleService1.svc/$metadata
+ * e.g. http://localhost:8080/DemoService/DemoService.svc/$metadata
  */
 public class DemoEdmProvider extends CsdlAbstractEdmProvider {
 
@@ -53,25 +53,34 @@ public class DemoEdmProvider extends CsdlAbstractEdmProvider {
 
     // EDM Container
     public static final String CONTAINER_NAME = "Container";
-    public static final FullQualifiedName CONTAINER = new FullQualifiedName(NAMESPACE, CONTAINER_NAME);
+    public static final FullQualifiedName CONTAINER = 
+            new FullQualifiedName(NAMESPACE, CONTAINER_NAME);
 
     // Entity Types Names
     public static final String ET_PRODUCT_NAME = "Product";
-    public static final FullQualifiedName ET_PRODUCT_FQN = new FullQualifiedName(NAMESPACE, ET_PRODUCT_NAME);
+    public static final FullQualifiedName ET_PRODUCT_FQN = 
+            new FullQualifiedName(NAMESPACE, ET_PRODUCT_NAME);
     public static final String ET_CATEGORY_NAME = "Category";
-    public static final FullQualifiedName ET_CATEGORY_FQN = new FullQualifiedName(NAMESPACE, ET_CATEGORY_NAME);
+    public static final FullQualifiedName ET_CATEGORY_FQN = 
+            new FullQualifiedName(NAMESPACE, ET_CATEGORY_NAME);
+    public static final String ET_ADVERTISEMENT_NAME = "Advertisement";
+    public static final FullQualifiedName ET_ADVERTISEMENT_FQN =
+            new FullQualifiedName(NAMESPACE, ET_ADVERTISEMENT_NAME);
 
     // Entity Set Names
     public static final String ES_PRODUCTS_NAME = "Products";
     public static final String ES_CATEGORIES_NAME = "Categories";
+    public static final String ES_ADVERTISEMENTS_NAME = "Advertisements";
   
     // Action
     public static final String ACTION_RESET = "Reset";
-    public static final FullQualifiedName ACTION_RESET_FQN = new FullQualifiedName(NAMESPACE, ACTION_RESET);
+    public static final FullQualifiedName ACTION_RESET_FQN = 
+            new FullQualifiedName(NAMESPACE, ACTION_RESET);
 
     // Function
     public static final String FUNCTION_COUNT_CATEGORIES = "CountCategories";
-    public static final FullQualifiedName FUNCTION_COUNT_CATEGORIES_FQN = new FullQualifiedName(NAMESPACE, FUNCTION_COUNT_CATEGORIES);
+    public static final FullQualifiedName FUNCTION_COUNT_CATEGORIES_FQN = 
+            new FullQualifiedName(NAMESPACE, FUNCTION_COUNT_CATEGORIES);
 
     // Function/Action Parameters
     public static final String PARAMETER_AMOUNT = "Amount";
@@ -87,6 +96,7 @@ public class DemoEdmProvider extends CsdlAbstractEdmProvider {
         List<CsdlEntityType> entityTypes = new ArrayList<>();
         entityTypes.add(getEntityType(ET_PRODUCT_FQN));
         entityTypes.add(getEntityType(ET_CATEGORY_FQN));
+        entityTypes.add(getEntityType(ET_ADVERTISEMENT_FQN));
         schema.setEntityTypes(entityTypes);
     
         // add EntityContainer
@@ -254,6 +264,31 @@ public class DemoEdmProvider extends CsdlAbstractEdmProvider {
                     .setKey(Arrays.asList(keyRef))
                     .setNavigationProperties(Arrays.asList())
                     .setNavigationProperties(Arrays.asList(navigationProperty));
+            
+        } else if (entityTypeName.equals(ET_ADVERTISEMENT_FQN)) {
+            
+            // Properties
+            CsdlProperty id = new CsdlProperty()
+                    .setName("ID")
+                    .setType(EdmPrimitiveTypeKind.Int32.getFullQualifiedName());
+            CsdlProperty name = new CsdlProperty()
+                    .setName("Name")
+                    .setType(EdmPrimitiveTypeKind.String.getFullQualifiedName());
+            CsdlProperty airDate = new CsdlProperty()
+                    .setName("AirDate")
+                    .setType(EdmPrimitiveTypeKind.DateTimeOffset.getFullQualifiedName());
+            
+            // Key
+            CsdlPropertyRef keyRef = new CsdlPropertyRef()
+                    .setName("ID");
+            
+            // Entity type
+            return new CsdlEntityType()
+                    .setName(ET_ADVERTISEMENT_NAME)
+                    .setProperties(Arrays.asList(id, name, airDate))
+                    .setKey(Arrays.asList(keyRef))
+                    .setHasStream(true);
+            
         }
 
         return null;
@@ -285,6 +320,13 @@ public class DemoEdmProvider extends CsdlAbstractEdmProvider {
                         .setName(ES_CATEGORIES_NAME)
                         .setType(ET_CATEGORY_FQN)
                         .setNavigationPropertyBindings(Arrays.asList(binding));
+                
+            } else if (entitySetName.equals(ES_ADVERTISEMENTS_NAME)) {
+                
+                return new CsdlEntitySet()
+                        .setName(ES_ADVERTISEMENTS_NAME)
+                        .setType(ET_ADVERTISEMENT_FQN);
+                
             }
         }
         return null;

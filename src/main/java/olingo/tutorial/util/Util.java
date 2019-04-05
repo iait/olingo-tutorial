@@ -38,22 +38,23 @@ public class Util {
         return uriResource;
       }
     
-  public static Entity findEntity(EdmEntityType edmEntityType, EntityCollection entitySet,
-                                  List<UriParameter> keyParams) throws ODataApplicationException {
+    public static Entity findEntity(
+            EdmEntityType edmEntityType, EntityCollection entitySet, List<UriParameter> keyParams) 
+                    throws ODataApplicationException {
 
-    List<Entity> entityList = entitySet.getEntities();
+        List<Entity> entityList = entitySet.getEntities();
 
-    // loop over all entities in order to find that one that matches all keys in request
-    // e.g. contacts(ContactID=1, CompanyID=1)
-    for (Entity entity: entityList) {
-      boolean foundEntity = entityMatchesAllKeys(edmEntityType, entity, keyParams);
-      if (foundEntity) {
-        return entity;
-      }
+        // loop over all entities in order to find that one that matches all keys in request
+        // e.g. contacts(ContactID=1, CompanyID=1)
+        for (Entity entity: entityList) {
+            boolean foundEntity = entityMatchesAllKeys(edmEntityType, entity, keyParams);
+            if (foundEntity) {
+                return entity;
+            }
+        }
+
+        return null;
     }
-
-    return null;
-  }
 
   public static boolean entityMatchesAllKeys(EdmEntityType edmEntityType, Entity entity, List<UriParameter> keyParams)
           throws ODataApplicationException {

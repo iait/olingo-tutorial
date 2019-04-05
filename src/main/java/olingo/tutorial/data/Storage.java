@@ -2,11 +2,11 @@ package olingo.tutorial.data;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+import java.util.UUID;
 
 import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.data.EntityCollection;
@@ -17,27 +17,45 @@ import org.apache.olingo.commons.api.edm.EdmEntityType;
 import org.apache.olingo.commons.api.edm.EdmKeyPropertyRef;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.olingo.commons.api.ex.ODataRuntimeException;
+import org.apache.olingo.commons.api.format.ContentType;
 import org.apache.olingo.commons.api.http.HttpMethod;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
 import org.apache.olingo.server.api.ODataApplicationException;
+import org.apache.olingo.server.api.ServiceMetadata;
 import org.apache.olingo.server.api.uri.UriParameter;
+import org.apache.olingo.server.api.uri.UriResourceFunction;
 
 import olingo.tutorial.service.DemoEdmProvider;
 import olingo.tutorial.util.Util;
 
 public class Storage {
+    
+    private static final String MEDIA_PROPERTY_NAME = "$value";
 
     private List<Entity> productList;
     private List<Entity> categoryList;
+    private List<Entity> advertisementList;
 
     public Storage() {
         productList = new ArrayList<>();
         categoryList = new ArrayList<>();
+        advertisementList = new ArrayList<>();
         initProductSampleData();
         initCategorySampleData();
+        initAdvertisementSampleData();
     }
 
     /* PUBLIC FACADE */
+    
+    public byte[] readMedia(Entity entity) {
+        return (byte[]) entity.getProperty(MEDIA_PROPERTY_NAME).asPrimitive();
+    }
+
+    public void updateMedia(Entity entity, String mediaContentType, byte[] data) {
+        entity.getProperties().remove(entity.getProperty(MEDIA_PROPERTY_NAME));
+        entity.addProperty(new Property(null, MEDIA_PROPERTY_NAME, ValueType.PRIMITIVE, data));
+        entity.setMediaContentType(mediaContentType);
+    }
 
     public EntityCollection readEntitySetData(EdmEntitySet edmEntitySet) 
             throws ODataApplicationException{
@@ -47,6 +65,25 @@ public class Storage {
             return getProducts();
         } else if (edmEntitySet.getName().equals(DemoEdmProvider.ES_CATEGORIES_NAME)) {
             return getCategories();
+        }
+
+        return null;
+    }
+
+    public Entity createMediaEntity(
+            EdmEntityType edmEntityType, String mediaContentType, final byte[] data) {
+
+        if (edmEntityType.getName().equals(DemoEdmProvider.ET_ADVERTISEMENT_NAME)) {
+            Entity entity = new Entity();
+            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, UUID.randomUUID()));
+            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, null));
+            entity.addProperty(new Property(null, "AirDate", ValueType.PRIMITIVE, null));
+
+            entity.setMediaContentType(mediaContentType);
+            entity.addProperty(new Property(null, MEDIA_PROPERTY_NAME, ValueType.PRIMITIVE, data));
+
+            advertisementList.add(entity);
+            return entity;
         }
 
         return null;
@@ -234,88 +271,106 @@ public class Storage {
         }
 
      /* HELPER */
-        private void initProductSampleData() {
+    private void initProductSampleData() {
 
-            Entity entity = new Entity();
+        Entity entity = new Entity();
 
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 1));
-            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Notebook Basic 15"));
-            entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
-                "Notebook Basic, 1.7GHz - 15 XGA - 1024MB DDR2 SDRAM - 40GB"));
-            entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
-            entity.setId(createId(entity, "ID"));
-            productList.add(entity);
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 1));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Notebook Basic 15"));
+        entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
+            "Notebook Basic, 1.7GHz - 15 XGA - 1024MB DDR2 SDRAM - 40GB"));
+        entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
+        entity.setId(createId(entity, "ID"));
+        productList.add(entity);
 
-            entity = new Entity();
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 2));
-            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Notebook Professional 17"));
-            entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
-                "Notebook Professional, 2.8GHz - 15 XGA - 8GB DDR3 RAM - 500GB"));
-            entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
-            entity.setId(createId(entity, "ID"));
-            productList.add(entity);
+        entity = new Entity();
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 2));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Notebook Professional 17"));
+        entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
+            "Notebook Professional, 2.8GHz - 15 XGA - 8GB DDR3 RAM - 500GB"));
+        entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
+        entity.setId(createId(entity, "ID"));
+        productList.add(entity);
 
-            entity = new Entity();
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 3));
-            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "1UMTS PDA"));
-            entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
-                "Ultrafast 3G UMTS/HSDPA Pocket PC, supports GSM network"));
-            entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
-            entity.setId(createId(entity, "ID"));
-            productList.add(entity);
+        entity = new Entity();
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 3));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "1UMTS PDA"));
+        entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
+            "Ultrafast 3G UMTS/HSDPA Pocket PC, supports GSM network"));
+        entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
+        entity.setId(createId(entity, "ID"));
+        productList.add(entity);
 
-            entity = new Entity();
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 4));
-            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Comfort Easy"));
-            entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
-                "32 GB Digital Assitant with high-resolution color screen"));
-            entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
-            entity.setId(createId(entity, "ID"));
-            productList.add(entity);
+        entity = new Entity();
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 4));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Comfort Easy"));
+        entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
+            "32 GB Digital Assitant with high-resolution color screen"));
+        entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
+        entity.setId(createId(entity, "ID"));
+        productList.add(entity);
 
-            entity = new Entity();
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 5));
-            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Ergo Screen"));
-            entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
-                "19 Optimum Resolution 1024 x 768 @ 85Hz, resolution 1280 x 960"));
-            entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
-            entity.setId(createId(entity, "ID"));
-            productList.add(entity);
+        entity = new Entity();
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 5));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Ergo Screen"));
+        entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
+            "19 Optimum Resolution 1024 x 768 @ 85Hz, resolution 1280 x 960"));
+        entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
+        entity.setId(createId(entity, "ID"));
+        productList.add(entity);
 
-            entity = new Entity();
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 6));
-            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Flat Basic"));
-            entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
-                "Optimum Hi-Resolution max. 1600 x 1200 @ 85Hz, Dot Pitch: 0.24mm"));
-            entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
-            entity.setId(createId(entity, "ID"));
-            productList.add(entity);
-          }
+        entity = new Entity();
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 6));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Flat Basic"));
+        entity.addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
+            "Optimum Hi-Resolution max. 1600 x 1200 @ 85Hz, Dot Pitch: 0.24mm"));
+        entity.setType(DemoEdmProvider.ET_PRODUCT_FQN.getFullQualifiedNameAsString());
+        entity.setId(createId(entity, "ID"));
+        productList.add(entity);
+    }
 
-          private void initCategorySampleData() {
+    private void initCategorySampleData() {
 
-            Entity entity = new Entity();
+        Entity entity = new Entity();
+        
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 1));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Notebooks"));
+        entity.setType(DemoEdmProvider.ET_CATEGORY_FQN.getFullQualifiedNameAsString());
+        entity.setId(createId(entity, "ID"));
+        categoryList.add(entity);
+        
+        entity = new Entity();
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 2));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Organizers"));
+        entity.setType(DemoEdmProvider.ET_CATEGORY_FQN.getFullQualifiedNameAsString());
+        entity.setId(createId(entity, "ID"));
+        categoryList.add(entity);
+        
+        entity = new Entity();
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 3));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Monitors"));
+        entity.setType(DemoEdmProvider.ET_CATEGORY_FQN.getFullQualifiedNameAsString());
+        entity.setId(createId(entity, "ID"));
+        categoryList.add(entity);
+    }
 
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 1));
-            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Notebooks"));
-            entity.setType(DemoEdmProvider.ET_CATEGORY_FQN.getFullQualifiedNameAsString());
-            entity.setId(createId(entity, "ID"));
-            categoryList.add(entity);
+    private void initAdvertisementSampleData() {
+        Entity entity = new Entity();
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, UUID.fromString("f89dee73-af9f-4cd4-b330-db93c25ff3c7")));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Old School Lemonade Store, Retro Style"));
+        entity.addProperty(new Property(null, "AirDate", ValueType.PRIMITIVE, Timestamp.valueOf("2012-11-07 00:00:00")));
+        entity.addProperty(new Property(null, MEDIA_PROPERTY_NAME, ValueType.PRIMITIVE, "Super content".getBytes()));
+        entity.setMediaContentType(ContentType.parse("text/plain").toContentTypeString());
+        advertisementList.add(entity);
 
-            entity = new Entity();
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 2));
-            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Organizers"));
-            entity.setType(DemoEdmProvider.ET_CATEGORY_FQN.getFullQualifiedNameAsString());
-            entity.setId(createId(entity, "ID"));
-            categoryList.add(entity);
-
-            entity = new Entity();
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 3));
-            entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Monitors"));
-            entity.setType(DemoEdmProvider.ET_CATEGORY_FQN.getFullQualifiedNameAsString());
-            entity.setId(createId(entity, "ID"));
-            categoryList.add(entity);
-          }
+        entity = new Entity();
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, UUID.fromString("db2d2186-1c29-4d1e-88ef-a127f521b9c67")));
+        entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Early morning start, need coffee"));
+        entity.addProperty(new Property(null, "AirDate", ValueType.PRIMITIVE, Timestamp.valueOf("2000-02-29 00:00:00")));
+        entity.addProperty(new Property(null, MEDIA_PROPERTY_NAME, ValueType.PRIMITIVE, "Super content2".getBytes()));
+        entity.setMediaContentType(ContentType.parse("text/plain").toContentTypeString());
+        advertisementList.add(entity);
+    }
 
     public EntityCollection getRelatedEntityCollection(Entity sourceEntity, EdmEntityType targetEntityType) {
         EntityCollection navigationTargetEntityCollection = new EntityCollection();
@@ -393,5 +448,77 @@ public class Storage {
           }
         }
         return false;
-      }
+    }
+    
+    public EntityCollection readFunctionImportCollection(
+            UriResourceFunction uriResourceFunction, ServiceMetadata serviceMetadata) 
+                    throws ODataApplicationException {
+
+        if (DemoEdmProvider.FUNCTION_COUNT_CATEGORIES.equals(uriResourceFunction.getFunctionImport().getName())) {
+            // Get the parameter of the function
+            UriParameter parameterAmount = uriResourceFunction.getParameters().get(0);
+
+            // Try to convert the parameter to an Integer.
+            // We have to take care, that the type of parameter fits to its EDM declaration
+            int amount;
+            try {
+                amount = Integer.parseInt(parameterAmount.getText());
+            } catch(NumberFormatException e) {
+                throw new ODataApplicationException("Type of parameter Amount must be Edm.Int32",
+                        HttpStatusCode.BAD_REQUEST.getStatusCode(), Locale.ENGLISH);
+            }
+
+            EdmEntityType productEntityType = serviceMetadata.getEdm().getEntityType(DemoEdmProvider.ET_PRODUCT_FQN);
+            List<Entity> resultEntityList = new ArrayList<>();
+
+            // Loop over all categories and check how many products are linked
+            for (Entity category : categoryList) {
+                EntityCollection products = getRelatedEntityCollection(category, productEntityType);
+                if (products.getEntities().size() == amount) {
+                    resultEntityList.add(category);
+                }
+            }
+
+            EntityCollection resultCollection = new EntityCollection();
+            resultCollection.getEntities().addAll(resultEntityList);
+            return resultCollection;
+        } else {
+            throw new ODataApplicationException("Function not implemented", 
+                    HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ROOT);
+        }
+    }
+
+    public Entity readFunctionImportEntity(
+            UriResourceFunction uriResourceFunction, ServiceMetadata serviceMetadata) 
+                    throws ODataApplicationException {
+
+        EntityCollection entityCollection = readFunctionImportCollection(uriResourceFunction, serviceMetadata);
+        EdmEntityType edmEntityType = (EdmEntityType) uriResourceFunction.getFunction().getReturnType().getType();
+
+        return Util.findEntity(edmEntityType, entityCollection, uriResourceFunction.getKeyPredicates());
+    }
+    
+    public void resetDataSet(int amount) {
+        // Replace the old lists with empty ones
+        productList = new ArrayList<>();
+        categoryList = new ArrayList<>();
+
+        // Create new sample data
+        initProductSampleData();
+        initCategorySampleData();
+
+        // Truncate the lists
+        if (amount < productList.size()) {
+            productList = productList.subList(0, amount);
+            // Products 0, 1 are linked to category 0
+            // Products 2, 3 are linked to category 1
+            // Products 4, 5 are linked to category 2
+            categoryList = categoryList.subList(0, (amount + 1) / 2);
+        }
+    }
+
+    public void resetDataSet() {
+        resetDataSet(Integer.MAX_VALUE);
+    }
 }
+
