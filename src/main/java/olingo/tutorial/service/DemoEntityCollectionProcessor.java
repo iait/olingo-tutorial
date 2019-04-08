@@ -310,8 +310,8 @@ public class DemoEntityCollectionProcessor implements EntityCollectionProcessor 
                 }
                 if (result instanceof Boolean) {
                     if (!Boolean.TRUE.equals(result)) {
-                      // The expression evaluated to false (or null)
-                      iterator.remove();
+                        // The expression evaluated to false (or null)
+                        iterator.remove();
                     }
                  } else {
                      throw new ODataApplicationException("A filter expression must evaulate to type Edm.Boolean", 
@@ -337,6 +337,6 @@ public class DemoEntityCollectionProcessor implements EntityCollectionProcessor 
         response.setContent(serializedResult.getContent());
         response.setStatusCode(HttpStatusCode.OK.getStatusCode());
         response.setHeader(HttpHeader.CONTENT_TYPE, responseFormat.toContentTypeString());
-  }
+    }
 
 }

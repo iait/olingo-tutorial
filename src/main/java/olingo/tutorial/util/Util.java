@@ -22,7 +22,8 @@ import org.apache.olingo.server.api.uri.UriResourceEntitySet;
 
 public class Util {
     
-    public static UriResourceEntitySet getUriResourceEntitySet(UriInfoResource uriInfo) throws ODataApplicationException {
+    public static UriResourceEntitySet getUriResourceEntitySet(UriInfoResource uriInfo) 
+            throws ODataApplicationException {
 
         List<UriResource> resourcePaths = uriInfo.getUriResourceParts();
         // To get the entity set we have to interpret all URI segments
@@ -36,7 +37,7 @@ public class Util {
         UriResourceEntitySet uriResource = (UriResourceEntitySet) resourcePaths.get(0);
 
         return uriResource;
-      }
+    }
     
     public static Entity findEntity(
             EdmEntityType edmEntityType, EntityCollection entitySet, List<UriParameter> keyParams) 
@@ -56,89 +57,90 @@ public class Util {
         return null;
     }
 
-  public static boolean entityMatchesAllKeys(EdmEntityType edmEntityType, Entity entity, List<UriParameter> keyParams)
-          throws ODataApplicationException {
+    public static boolean entityMatchesAllKeys(EdmEntityType edmEntityType, Entity entity, List<UriParameter> keyParams)
+            throws ODataApplicationException {
 
-    // loop over all keys
-    for (final UriParameter key : keyParams) {
-      // key
-      String keyName = key.getName();
-      String keyText = key.getText();
+        // loop over all keys
+        for (final UriParameter key : keyParams) {
+            // key
+            String keyName = key.getName();
+            String keyText = key.getText();
+    
+            // Edm: we need this info for the comparison below
+            EdmProperty edmKeyProperty = (EdmProperty) edmEntityType.getProperty(keyName);
+            Boolean isNullable = edmKeyProperty.isNullable();
+            Integer maxLength = edmKeyProperty.getMaxLength();
+            Integer precision = edmKeyProperty.getPrecision();
+            Boolean isUnicode = edmKeyProperty.isUnicode();
+            Integer scale = edmKeyProperty.getScale();
+            // get the EdmType in order to compare
+            EdmType edmType = edmKeyProperty.getType();
+            EdmPrimitiveType edmPrimitiveType = (EdmPrimitiveType) edmType;
+    
+            // Runtime data: the value of the current entity
+            // don't need to check for null, this is done in olingo library
+            Object valueObject = entity.getProperty(keyName).getValue();
+    
+            // now need to compare the valueObject with the keyText String
+            // this is done using the type.valueToString
+            String valueAsString;
+            try {
+                valueAsString = edmPrimitiveType.valueToString(valueObject, isNullable, maxLength, precision, scale, isUnicode);
+            } catch (EdmPrimitiveTypeException e) {
+                throw new ODataApplicationException("Failed to retrieve String value", HttpStatusCode.INTERNAL_SERVER_ERROR
+                        .getStatusCode(), Locale.ENGLISH, e);
+            }
 
-      // Edm: we need this info for the comparison below
-      EdmProperty edmKeyProperty = (EdmProperty) edmEntityType.getProperty(keyName);
-      Boolean isNullable = edmKeyProperty.isNullable();
-      Integer maxLength = edmKeyProperty.getMaxLength();
-      Integer precision = edmKeyProperty.getPrecision();
-      Boolean isUnicode = edmKeyProperty.isUnicode();
-      Integer scale = edmKeyProperty.getScale();
-      // get the EdmType in order to compare
-      EdmType edmType = edmKeyProperty.getType();
-      EdmPrimitiveType edmPrimitiveType = (EdmPrimitiveType) edmType;
+            if (valueAsString == null) {
+                return false;
+            }
 
-      // Runtime data: the value of the current entity
-      // don't need to check for null, this is done in olingo library
-      Object valueObject = entity.getProperty(keyName).getValue();
+            boolean matches = valueAsString.equals(keyText);
+            if (!matches) {
+                // if any of the key properties is not found in the entity, we don't need to search further
+                return false;
+            }
+        }
 
-      // now need to compare the valueObject with the keyText String
-      // this is done using the type.valueToString
-      String valueAsString;
-      try {
-        valueAsString = edmPrimitiveType.valueToString(valueObject, isNullable, maxLength, precision, scale, isUnicode);
-      } catch (EdmPrimitiveTypeException e) {
-        throw new ODataApplicationException("Failed to retrieve String value", HttpStatusCode.INTERNAL_SERVER_ERROR
-                .getStatusCode(), Locale.ENGLISH, e);
-      }
-
-      if (valueAsString == null) {
-        return false;
-      }
-
-      boolean matches = valueAsString.equals(keyText);
-      if (!matches) {
-        // if any of the key properties is not found in the entity, we don't need to search further
-        return false;
-      }
+        return true;
     }
-
-    return true;
-  }
   
-  /**
-   * Example:
-   * For the following navigation: DemoService.svc/Categories(1)/Products
-   * we need the EdmEntitySet for the navigation property "Products"
-   *
-   * This is defined as follows in the metadata:
-   * <code>
-   *    <EntitySet Name="Categories" EntityType="OData.Demo.Category">
-   *        <NavigationPropertyBinding Path="Products" Target="Products"/>
-   *    </EntitySet>
-   * </code>
-   * The "Target" attribute specifies the target EntitySet
-   * Therefore we need the startEntitySet "Categories" in order to retrieve the target EntitySet "Products"
-   */
-  public static EdmEntitySet getNavigationTargetEntitySet(EdmEntitySet startEntitySet,
-      EdmNavigationProperty navigationProperty)
-              throws ODataApplicationException {
+    /**
+     * Example:
+     * For the following navigation: DemoService.svc/Categories(1)/Products
+     * we need the EdmEntitySet for the navigation property "Products"
+     *
+     * This is defined as follows in the metadata:
+     * <code>
+     *    <EntitySet Name="Categories" EntityType="OData.Demo.Category">
+     *        <NavigationPropertyBinding Path="Products" Target="Products"/>
+     *    </EntitySet>
+     * </code>
+     * The "Target" attribute specifies the target EntitySet
+     * Therefore we need the startEntitySet "Categories" in order to retrieve the target EntitySet "Products"
+     */
+    public static EdmEntitySet getNavigationTargetEntitySet(
+            EdmEntitySet startEntitySet,
+            EdmNavigationProperty navigationProperty)
+                    throws ODataApplicationException {
 
-    EdmEntitySet navigationTargetEntitySet = null;
+        EdmEntitySet navigationTargetEntitySet = null;
 
-    String navPropName = navigationProperty.getName();
-    EdmBindingTarget edmBindingTarget = startEntitySet.getRelatedBindingTarget(navPropName);
-    if (edmBindingTarget == null) {
-      throw new ODataApplicationException("Not supported.",
-              HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ROOT);
+        String navPropName = navigationProperty.getName();
+        EdmBindingTarget edmBindingTarget = startEntitySet.getRelatedBindingTarget(navPropName);
+        if (edmBindingTarget == null) {
+            throw new ODataApplicationException("Not supported.",
+                    HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ROOT);
+        }
+
+        if (edmBindingTarget instanceof EdmEntitySet) {
+            navigationTargetEntitySet = (EdmEntitySet) edmBindingTarget;
+        } else {
+            throw new ODataApplicationException("Not supported.",
+                    HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ROOT);
+        }
+
+        return navigationTargetEntitySet;
     }
-
-    if (edmBindingTarget instanceof EdmEntitySet) {
-      navigationTargetEntitySet = (EdmEntitySet) edmBindingTarget;
-    } else {
-      throw new ODataApplicationException("Not supported.",
-              HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ROOT);
-    }
-
-    return navigationTargetEntitySet;
-  }
   
 }
