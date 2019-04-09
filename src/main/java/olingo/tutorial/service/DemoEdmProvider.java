@@ -339,6 +339,7 @@ public class DemoEdmProvider extends CsdlAbstractEdmProvider {
         List<CsdlEntitySet> entitySets = new ArrayList<>();
         entitySets.add(getEntitySet(CONTAINER, ES_PRODUCTS_NAME));
         entitySets.add(getEntitySet(CONTAINER, ES_CATEGORIES_NAME));
+        entitySets.add(getEntitySet(CONTAINER, ES_ADVERTISEMENTS_NAME));
     
         // create EntityContainer
         CsdlEntityContainer entityContainer = new CsdlEntityContainer();
@@ -363,7 +364,7 @@ public class DemoEdmProvider extends CsdlAbstractEdmProvider {
     public CsdlEntityContainerInfo getEntityContainerInfo(FullQualifiedName entityContainerName) {
 
         // This method is invoked when displaying the service document at e.g. 
-          // http://localhost:8080/DemoService/DemoService.svc
+        // http://localhost:8080/DemoService/DemoService.svc
         if(entityContainerName == null || entityContainerName.equals(CONTAINER)){
           CsdlEntityContainerInfo entityContainerInfo = new CsdlEntityContainerInfo();
           entityContainerInfo.setContainerName(CONTAINER);

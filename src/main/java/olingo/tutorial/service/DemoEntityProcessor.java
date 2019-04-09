@@ -25,6 +25,7 @@ import java.util.Locale;
 import org.apache.olingo.commons.api.data.ContextURL;
 import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.data.EntityCollection;
+import org.apache.olingo.commons.api.data.ContextURL.Suffix;
 import org.apache.olingo.commons.api.edm.EdmEntitySet;
 import org.apache.olingo.commons.api.edm.EdmEntityType;
 import org.apache.olingo.commons.api.edm.EdmNavigationProperty;
@@ -34,12 +35,14 @@ import org.apache.olingo.commons.api.http.HttpMethod;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
 import org.apache.olingo.server.api.OData;
 import org.apache.olingo.server.api.ODataApplicationException;
+import org.apache.olingo.server.api.ODataLibraryException;
 import org.apache.olingo.server.api.ODataRequest;
 import org.apache.olingo.server.api.ODataResponse;
 import org.apache.olingo.server.api.ServiceMetadata;
 import org.apache.olingo.server.api.deserializer.DeserializerException;
 import org.apache.olingo.server.api.deserializer.ODataDeserializer;
 import org.apache.olingo.server.api.processor.EntityProcessor;
+import org.apache.olingo.server.api.processor.MediaEntityProcessor;
 import org.apache.olingo.server.api.serializer.EntitySerializerOptions;
 import org.apache.olingo.server.api.serializer.ODataSerializer;
 import org.apache.olingo.server.api.serializer.SerializerException;
@@ -54,7 +57,7 @@ import org.apache.olingo.server.api.uri.UriResourceNavigation;
 import olingo.tutorial.data.Storage;
 import olingo.tutorial.util.Util;
 
-public class DemoEntityProcessor implements EntityProcessor {
+public class DemoEntityProcessor implements EntityProcessor, MediaEntityProcessor {
 
     private OData odata;
     private ServiceMetadata serviceMetadata;
@@ -239,6 +242,84 @@ public class DemoEntityProcessor implements EntityProcessor {
 
         // 3. configure the response object
         response.setStatusCode(HttpStatusCode.NO_CONTENT.getStatusCode());
+    }
+
+    @Override
+    public void readMediaEntity(ODataRequest request, ODataResponse response, UriInfo uriInfo,
+            ContentType responseFormat) 
+                    throws ODataApplicationException, ODataLibraryException {
+        
+        UriResourceEntitySet uriResourceEntitySet = Util.getUriResourceEntitySet(uriInfo);
+        EdmEntitySet entitySet = uriResourceEntitySet.getEntitySet();
+
+        Entity entity = storage.readEntityData(entitySet, uriResourceEntitySet.getKeyPredicates());
+
+        byte[] mediaContent = storage.readMedia(entity);
+        InputStream responseContent = odata.createFixedFormatSerializer().binary(mediaContent);
+
+        response.setStatusCode(HttpStatusCode.OK.getStatusCode());
+        response.setContent(responseContent);
+        response.setHeader(HttpHeader.CONTENT_TYPE, entity.getMediaContentType());
+    }
+
+    @Override
+    public void createMediaEntity(ODataRequest request, ODataResponse response, UriInfo uriInfo, 
+            ContentType requestFormat, ContentType responseFormat)
+                    throws ODataApplicationException, ODataLibraryException {
+
+        EdmEntitySet entitySet = Util.getUriResourceEntitySet(uriInfo).getEntitySet();
+        // the whole body of the request contains the content of the media entity
+        byte[] mediaContent = odata.createFixedFormatDeserializer().binary(request.getBody());
+
+        Entity entity = storage.createMediaEntity(entitySet.getEntityType(),
+                requestFormat.toContentTypeString(), mediaContent);
+
+        ContextURL contextUrl = ContextURL.with().entitySet(entitySet).suffix(Suffix.ENTITY).build();
+        EntitySerializerOptions opts = EntitySerializerOptions.with().contextURL(contextUrl).build();
+        SerializerResult serializerResult = odata.createSerializer(responseFormat)
+                .entity(serviceMetadata, entitySet.getEntityType(), entity, opts);
+
+        String location = request.getRawBaseUri() + '/'
+                + odata.createUriHelper().buildCanonicalURL(entitySet, entity);
+
+        response.setContent(serializerResult.getContent());
+        response.setStatusCode(HttpStatusCode.CREATED.getStatusCode());
+        response.setHeader(HttpHeader.LOCATION, location);
+        response.setHeader(HttpHeader.CONTENT_TYPE, responseFormat.toContentTypeString());
+    }
+
+    @Override
+    public void updateMediaEntity(ODataRequest request, ODataResponse response, UriInfo uriInfo,
+            ContentType requestFormat, ContentType responseFormat)
+                    throws ODataApplicationException, ODataLibraryException {
+
+        UriResourceEntitySet uriResourceEntitySet = Util.getUriResourceEntitySet(uriInfo);
+        EdmEntitySet entitySet = uriResourceEntitySet.getEntitySet();
+
+        Entity entity = storage.readEntityData(entitySet, uriResourceEntitySet.getKeyPredicates());
+
+        byte[] mediaContent = odata.createFixedFormatDeserializer().binary(request.getBody());
+        storage.updateMedia(entity, requestFormat.toContentTypeString(), mediaContent);
+
+        response.setStatusCode(HttpStatusCode.NO_CONTENT.getStatusCode());
+    }
+
+    @Override
+    public void deleteMediaEntity(ODataRequest request, ODataResponse response, UriInfo uriInfo)
+            throws ODataApplicationException, ODataLibraryException {
+        /*
+         * In this tutorial, the content of the media entity is stored in a special property.
+         * So no additional steps to delete the content of the media entity are necessary.
+         *
+         * A real service may store the content on the file system. So we have to take care to
+         * delete external files too.
+         *
+         * DELETE request to /Advertisements(ID) will be dispatched to the deleteEntity(...) method
+         * DELETE request to /Advertisements(ID)/$value will be dispatched to the deleteMediaEntity(...) method
+         *
+         * So it is a good idea handle deletes in a central place.
+         */
+        deleteEntity(request, response, uriInfo);
     }
 
 }

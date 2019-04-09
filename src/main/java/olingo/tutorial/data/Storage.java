@@ -6,7 +6,6 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
 import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.data.EntityCollection;
@@ -57,25 +56,23 @@ public class Storage {
         entity.setMediaContentType(mediaContentType);
     }
 
-    public EntityCollection readEntitySetData(EdmEntitySet edmEntitySet) 
-            throws ODataApplicationException{
+    public EntityCollection readEntitySetData(EdmEntitySet entitySet) 
+            throws ODataApplicationException {
 
-        // actually, this is only required if we have more than one Entity Sets
-        if (edmEntitySet.getName().equals(DemoEdmProvider.ES_PRODUCTS_NAME)) {
-            return getProducts();
-        } else if (edmEntitySet.getName().equals(DemoEdmProvider.ES_CATEGORIES_NAME)) {
-            return getCategories();
-        }
+        EdmEntityType entityType = entitySet.getEntityType();
 
-        return null;
+        return getEntitySet(entityType);
     }
 
     public Entity createMediaEntity(
-            EdmEntityType edmEntityType, String mediaContentType, final byte[] data) {
+            EdmEntityType edmEntityType, String mediaContentType, byte[] data) {
 
         if (edmEntityType.getName().equals(DemoEdmProvider.ET_ADVERTISEMENT_NAME)) {
+            
+            int nextId = getNextId(advertisementList);
+            
             Entity entity = new Entity();
-            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, UUID.randomUUID()));
+            entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, nextId));
             entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, null));
             entity.addProperty(new Property(null, "AirDate", ValueType.PRIMITIVE, null));
 
@@ -89,110 +86,72 @@ public class Storage {
         return null;
     }
 
-    public Entity readEntityData(EdmEntitySet edmEntitySet, List<UriParameter> keyParams) 
+    public Entity readEntityData(EdmEntitySet entitySet, List<UriParameter> keyParams) 
             throws ODataApplicationException{
 
-        EdmEntityType edmEntityType = edmEntitySet.getEntityType();
+        EdmEntityType entityType = entitySet.getEntityType();
 
-        if (edmEntityType.getName().equals(DemoEdmProvider.ET_PRODUCT_NAME)) {
-            return getProduct(edmEntityType, keyParams);
-        } else if (edmEntityType.getName().equals(DemoEdmProvider.ET_CATEGORY_NAME)) {
-            return getCategory(edmEntityType, keyParams);
-        }
-
-        return null;
+        return getEntity(entityType, keyParams);
     }
 
-    public Entity createEntityData(EdmEntitySet edmEntitySet, Entity entityToCreate) {
+    public Entity createEntityData(EdmEntitySet entitySet, Entity entityToCreate) 
+            throws ODataApplicationException {
 
-        EdmEntityType edmEntityType = edmEntitySet.getEntityType();
+        EdmEntityType entityType = entitySet.getEntityType();
 
-        // actually, this is only required if we have more than one Entity Type
-        if (edmEntityType.getName().equals(DemoEdmProvider.ET_PRODUCT_NAME)) {
-          return createProduct(edmEntityType, entityToCreate);
-        }
-
-        return null;
-      }
+        return createEntity(entityType, entityToCreate);
+    }
     
     /**
      * This method is invoked for PATCH or PUT requests
      * */
     public void updateEntityData(
-            EdmEntitySet edmEntitySet, 
+            EdmEntitySet entitySet, 
             List<UriParameter> keyParams, 
             Entity updateEntity,
             HttpMethod httpMethod)
                     throws ODataApplicationException {
 
-        EdmEntityType edmEntityType = edmEntitySet.getEntityType();
+        EdmEntityType entityType = entitySet.getEntityType();
 
-        // actually, this is only required if we have more than one Entity Type
-        if (edmEntityType.getName().equals(DemoEdmProvider.ET_PRODUCT_NAME)) {
-            updateProduct(edmEntityType, keyParams, updateEntity, httpMethod);
-        }
+        updateEntity(entityType, keyParams, updateEntity, httpMethod);
     }
 
-    public void deleteEntityData(EdmEntitySet edmEntitySet, List<UriParameter> keyParams)
+    public void deleteEntityData(EdmEntitySet entitySet, List<UriParameter> keyParams)
             throws ODataApplicationException {
 
-        EdmEntityType edmEntityType = edmEntitySet.getEntityType();
+        EdmEntityType entityType = entitySet.getEntityType();
 
-        // actually, this is only required if we have more than one Entity Type
-        if (edmEntityType.getName().equals(DemoEdmProvider.ET_PRODUCT_NAME)) {
-            deleteProduct(edmEntityType, keyParams);
-        }
+        deleteEntity(entityType, keyParams);
     }
 
     /*  INTERNAL */
-    private EntityCollection getCategories() {
-        EntityCollection retEntitySet = new EntityCollection();
-        retEntitySet.getEntities().addAll(categoryList);
-        return retEntitySet;
-    }
     
-    private EntityCollection getProducts() {
+    private EntityCollection getEntitySet(EdmEntityType entityType) 
+            throws ODataApplicationException {
         EntityCollection retEntitySet = new EntityCollection();
-        retEntitySet.getEntities().addAll(productList);
+        List<Entity> entityList = getEntityList(entityType);
+        retEntitySet.getEntities().addAll(entityList);
         return retEntitySet;
     }
 
-    private Entity getCategory(EdmEntityType edmEntityType, List<UriParameter> keyParams) 
+    private Entity getEntity(EdmEntityType entityType, List<UriParameter> keyParams)
             throws ODataApplicationException {
-        EntityCollection entitySet = getCategories();
-        
-        Entity requestedEntity = Util.findEntity(edmEntityType, entitySet, keyParams);
+        EntityCollection entitySet = getEntitySet(entityType);
+
+        Entity requestedEntity = Util.findEntity(entityType, entitySet, keyParams);
 
         if (requestedEntity == null){
-            // this variable is null if our data doesn't contain an entity for the requested key
-            throw new ODataApplicationException("Entity for requested key doesn't exist",
-                                       HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
-        }
-
-        return requestedEntity;
-    }
-
-    private Entity getProduct(EdmEntityType edmEntityType, List<UriParameter> keyParams) 
-            throws ODataApplicationException {
-
-        // the list of entities at runtime
-        EntityCollection entitySet = getProducts();
-
-        /*  generic approach  to find the requested entity */
-        Entity requestedEntity = Util.findEntity(edmEntityType, entitySet, keyParams);
-
-        if (requestedEntity == null){
-            // this variable is null if our data doesn't contain an entity for the requested key
             throw new ODataApplicationException("Entity for requested key doesn't exist",
                     HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
         }
 
         return requestedEntity;
     }
-    
-    private boolean productIdExists(int id) {
 
-        for (Entity entity : this.productList) {
+    private boolean entityIdExists(int id, List<Entity> entityList) {
+
+        for (Entity entity : entityList) {
             Integer existingID = (Integer) entity.getProperty("ID").getValue();
             if (existingID.intValue() == id) {
                 return true;
@@ -201,39 +160,60 @@ public class Storage {
 
         return false;
     }
-    
-    private Entity createProduct(EdmEntityType edmEntityType, Entity entity) {
 
-        // the ID of the newly created product entity is generated automatically
+    private int getNextId(List<Entity> entityList) {
         int newId = 1;
-        while (productIdExists(newId)) {
+        while (entityIdExists(newId, entityList)) {
             newId++;
         }
+        return newId;
+    }
+    
+    private List<Entity> getEntityList(EdmEntityType entityType) 
+            throws ODataApplicationException {
 
-        Property idProperty = entity.getProperty("ID");
-        if (idProperty != null) {
-            idProperty.setValue(ValueType.PRIMITIVE, Integer.valueOf(newId));
+        if (entityType.getName().equals(DemoEdmProvider.ET_PRODUCT_NAME)) {
+            return productList;
+        } else if (entityType.getName().equals(DemoEdmProvider.ET_CATEGORY_NAME)) {
+            return categoryList;
+        } else if (entityType.getName().equals(DemoEdmProvider.ET_ADVERTISEMENT_NAME)) {
+            return advertisementList;
         } else {
-            // as of OData v4 spec, the key property can be omitted from the POST request body
-            entity.getProperties().add(new Property(null, "ID", ValueType.PRIMITIVE, newId));
+            throw new ODataApplicationException("Entity type not supported " + entityType.getName(), 
+                    HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
         }
-        entity.setId(createId(entity, "ID"));
-        this.productList.add(entity);
-
-        return entity;
 
     }
     
-    private void updateProduct(
-            EdmEntityType edmEntityType, 
+    private Entity createEntity(EdmEntityType entityType, Entity entity)
+            throws ODataApplicationException {
+
+        List<Entity> entityList = getEntityList(entityType);
+        int newId = getNextId(entityList);
+        
+        Property idProperty = entity.getProperty("ID");
+        if (idProperty != null) {
+            idProperty.setValue(ValueType.PRIMITIVE, newId);
+        } else {
+            entity.getProperties().add(new Property(null, "ID", ValueType.PRIMITIVE, newId));
+        }
+        entity.setId(createId(entity, "ID"));
+        entityList.add(entity);
+
+        return entity;
+    }
+    
+    private void updateEntity(
+            EdmEntityType entityType, 
             List<UriParameter> keyParams, 
             Entity receivedEntity,
             HttpMethod httpMethod) 
                     throws ODataApplicationException {
 
-        Entity existingEntity = getProduct(edmEntityType, keyParams);
+        Entity existingEntity = getEntity(entityType, keyParams);
         if (existingEntity == null) {
-            throw new ODataApplicationException("Entity not found", HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
+            throw new ODataApplicationException("Entity not found", 
+                    HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
         }
 
         // loop over all properties and replace the values with the values of the given payload
@@ -243,7 +223,7 @@ public class Storage {
             String propName = existingProp.getName();
 
             // ignore the key properties, they aren't updateable
-            if (isKey(edmEntityType, propName)) {
+            if (isKey(entityType, propName)) {
                 continue;
             }
 
@@ -267,15 +247,17 @@ public class Storage {
         }
     }
 
-    private void deleteProduct(EdmEntityType edmEntityType, List<UriParameter> keyParams)
+    private void deleteEntity(EdmEntityType entityType, List<UriParameter> keyParams)
             throws ODataApplicationException {
 
-        Entity productEntity = getProduct(edmEntityType, keyParams);
+        Entity productEntity = getEntity(entityType, keyParams);
         if (productEntity == null) {
-            throw new ODataApplicationException("Entity not found", HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
+            throw new ODataApplicationException("Entity not found", 
+                    HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
         }
 
-        this.productList.remove(productEntity);
+        List<Entity> entityList = getEntityList(entityType);
+        entityList.remove(productEntity);
     }
 
      /* HELPER */
@@ -364,7 +346,7 @@ public class Storage {
 
     private void initAdvertisementSampleData() {
         Entity entity = new Entity();
-        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, UUID.fromString("f89dee73-af9f-4cd4-b330-db93c25ff3c7")));
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 1));
         entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Old School Lemonade Store, Retro Style"));
         entity.addProperty(new Property(null, "AirDate", ValueType.PRIMITIVE, Timestamp.valueOf("2012-11-07 00:00:00")));
         entity.addProperty(new Property(null, MEDIA_PROPERTY_NAME, ValueType.PRIMITIVE, "Super content".getBytes()));
@@ -372,7 +354,7 @@ public class Storage {
         advertisementList.add(entity);
 
         entity = new Entity();
-        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, UUID.fromString("db2d2186-1c29-4d1e-88ef-a127f521b9c67")));
+        entity.addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 2));
         entity.addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Early morning start, need coffee"));
         entity.addProperty(new Property(null, "AirDate", ValueType.PRIMITIVE, Timestamp.valueOf("2000-02-29 00:00:00")));
         entity.addProperty(new Property(null, MEDIA_PROPERTY_NAME, ValueType.PRIMITIVE, "Super content2".getBytes()));
