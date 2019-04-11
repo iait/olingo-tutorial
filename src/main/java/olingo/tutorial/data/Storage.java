@@ -44,6 +44,71 @@ public class Storage {
         initAdvertisementSampleData();
     }
 
+    private List<Entity> productListBeforeTransaction;
+    private List<Entity> categoryListBeforeTransaction;
+    private List<Entity> advertisementListBeforeTransaction;
+
+    public void beginTransaction() throws ODataApplicationException {
+        if (productListBeforeTransaction != null
+                || categoryListBeforeTransaction != null
+                || advertisementListBeforeTransaction != null) {
+            throw new ODataApplicationException("Transaction in progress",
+                    HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
+        }
+        productListBeforeTransaction = cloneEntityCollection(productList);
+        categoryListBeforeTransaction = cloneEntityCollection(categoryList);
+        advertisementListBeforeTransaction = cloneEntityCollection(advertisementList); 
+    }
+
+    public void commitTransaction() throws ODataApplicationException {
+        if (productListBeforeTransaction == null
+                || categoryListBeforeTransaction == null
+                || advertisementListBeforeTransaction == null) {        
+            throw new ODataApplicationException("There is no transaction in progress to commit",
+                    HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
+        }
+        productListBeforeTransaction = null;
+        categoryListBeforeTransaction = null;
+        advertisementListBeforeTransaction = null;
+    }
+
+    public void rollbackTranscation() throws ODataApplicationException {
+        if (productListBeforeTransaction == null
+                || categoryListBeforeTransaction == null
+                || advertisementListBeforeTransaction == null) {        
+            throw new ODataApplicationException("There is no transaction in progress to rollback",
+                    HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
+        }
+        productList = productListBeforeTransaction;
+        productListBeforeTransaction = null;
+        categoryList = categoryListBeforeTransaction;
+        categoryListBeforeTransaction = null;
+        advertisementList = advertisementListBeforeTransaction;
+        advertisementListBeforeTransaction = null;
+    }
+
+    private List<Entity> cloneEntityCollection(List<Entity> entities) {
+        List<Entity> clonedEntities = new ArrayList<>();
+
+        for (Entity entity : entities) {
+            Entity clonedEntity = new Entity();
+
+            clonedEntity.setId(entity.getId());
+            for (Property property : entity.getProperties()) {
+                Property clonedProperty = new Property(
+                        property.getType(),
+                        property.getName(),
+                        property.getValueType(),
+                        property.getValue());
+                clonedEntity.addProperty(clonedProperty);
+            }
+
+            clonedEntities.add(clonedEntity);
+        }
+
+        return clonedEntities;
+    }
+
     /* PUBLIC FACADE */
     
     public byte[] readMedia(Entity entity) {
